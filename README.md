@@ -26,12 +26,12 @@ events).
 • Approve researcher access requests.  
 Researcher Functionalities (Menu Options)
 • Register as a new researcher (name, organization, field of study, contact).  
-• Login with Researcher ID.
-• Search & filter climate data (by region, time period, parameter).
-• Perform basic analysis (avg/max/min values, trend detection).
-• Generate and export reports (CSV/JSON).
-• View data visualizations (tables/summary statistics).
-• Logout.
+• Login with Researcher ID.  
+• Search & filter climate data (by region, time period, parameter).  
+• Perform basic analysis (avg/max/min values, trend detection).  
+• Generate and export reports (CSV/JSON).  
+• View data visualizations (tables/summary statistics).  
+• Logout.  
 3. Data Handling
 External Storage → JSON/CSV files for persistence.
 Files / Tables Needed:climate_data.json → (record_id, region, date, temperature, rainfall,
