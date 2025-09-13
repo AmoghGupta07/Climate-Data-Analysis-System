@@ -16,16 +16,16 @@ use JSON/CSV for storage with full CRUD (Create, Read, Update,
 Delete) functionality.
 2. Roles & Features
 Admin Functionalities (Menu Options)
-• Login as Admin.
+• Login as Admin.  
 • Add / Update / Delete climate data records (region, date, temperature,
-rainfall, CO₂ levels, humidity).
-• Upload bulk data (CSV/JSON import).
-• Manage climate categories (air quality, temperature, rainfall, emissions).
+rainfall, CO₂ levels, humidity).  
+• Upload bulk data (CSV/JSON import).  
+• Manage climate categories (air quality, temperature, rainfall, emissions).  
 • Generate reports (monthly/annual climate trends, anomalies, extreme
-events).
-• Approve researcher access requests.
+events).  
+• Approve researcher access requests.  
 Researcher Functionalities (Menu Options)
-• Register as a new researcher (name, organization, field of study, contact).
+• Register as a new researcher (name, organization, field of study, contact).  
 • Login with Researcher ID.
 • Search & filter climate data (by region, time period, parameter).
 • Perform basic analysis (avg/max/min values, trend detection).
