@@ -64,21 +64,21 @@ CLI allows exporting).
 4. Exit  
 (Admin Logs In)  
 --- Admin Menu ---  
-1. Add Climate Record  
-2. Update/Delete Climate Data  
-3. Manage Categories  
-4. Upload Bulk Data  
-5. Generate Reports  
-6. Manage Researcher Access  
-7. Logout  
+• Add Climate Record  
+• Update/Delete Climate Data  
+• Manage Categories  
+• Upload Bulk Data  
+• Generate Reports  
+• Manage Researcher Access  
+• Logout  
 (Researcher Logs In)  
 --- Researcher Menu ---  
-1. Search Climate Data  
-2. Perform Analysis  
-3. Generate Report  
-4. Export Report  
-5. View Profile  
-6. Logout  
+• Search Climate Data  
+• Perform Analysis  
+• Generate Report  
+• Export Report  
+• View Profile  
+• Logout  
 6. Dataset Suggestion  
 • Synthetic dataset for testing:  
 o Climate records of 10 regions over 5 years (temperature, rainfall,
