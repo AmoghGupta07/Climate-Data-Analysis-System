@@ -1,10 +1,10 @@
 # Climate-Data-Analysis-System
-Semester-1 Gorup Project built in Python.
-25BCE2437 Areeb Ali Khan
-25BCE2414 Sidharth P Nair
-25BCE2394 Amogh Gupta
-25BCE2427 Shashank Reddy
-25BCE2459 Bonda Uma Venkata Varalakshmi
+Semester-1 Gorup Project built in Python.  
+25BCE2437 Areeb Ali Khan  
+25BCE2414 Sidharth P Nair  
+25BCE2394 Amogh Gupta  
+25BCE2427 Shashank Reddy  
+25BCE2459 Bonda Uma Venkata Varalakshmi  
 Project Title: Climate Data Analysis System (Admin & Researcher CLI
 System)
 1. Overview
