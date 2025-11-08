@@ -3,6 +3,7 @@ import json
 import os
 from datetime import datetime
 from tabulate import tabulate
+import matplotlib.pyplot as plt
 
 data_files = {"climate_data": "climate_data.csv", "researchers": "researchers.csv", "reports": "reports.csv", "categories": "categories.csv", "access": "access.csv"}
 
@@ -114,6 +115,7 @@ def add_climate_record():
     append_row(data_files["climate_data"], row, climate_fields)
     print("Record added successfully.\n")
 
+
 def update_delete_climate_data():
     data = load_csv(data_files["climate_data"], climate_fields)
     if not data:
@@ -145,8 +147,9 @@ def update_delete_climate_data():
             else:
                 print("Unknown action.")
                 return
-        else:
-            print("record_id not found.")
+    if 'action' not in locals():
+        print("record_id not found.")
+
 
 def manage_categories():
     data = load_csv(data_files["categories"], categories_fields)
@@ -194,6 +197,7 @@ def manage_categories():
         else:
             print("Invalid choice.")
 
+
 def upload_bulk_data():
     path = safe_input("Enter path to CSV or JSON file for bulk climate data import: ").strip()
     if not os.path.exists(path):
@@ -225,7 +229,6 @@ def upload_bulk_data():
     except Exception as e:
         print("Failed to load file:", e)
         return
-
     climate = load_csv(data_files["climate_data"], climate_fields)
     max_id = 0
     for r in climate:
@@ -250,46 +253,73 @@ def upload_bulk_data():
         append_row(data_files["climate_data"], r, climate_fields)
     print(f"Imported {len(prepared)} records into {data_files['climate_data']}.")
 
-def generate_reports_admin(admin_username):
+
+def generate_reports_admin():
     data = load_csv(data_files["climate_data"], climate_fields)
     if not data:
         print("No climate data available.")
         return
-    print("\n--- Generate Admin Report ---")
-    region = safe_input("Region (leave blank for all): ").strip()
-    year = safe_input("Year (YYYY or leave blank): ").strip()
+    print("\n--- Admin Analytics ---\n1. Monthly Trend\n2. Annual Trend\n3. Anomaly Detection (Z-score)\n4. Extreme Events (top 5)")
+    choice = safe_input("Select option: ").strip()
+    region = safe_input("Region (leave blank for ALL): ").strip()
+    param = safe_input("Parameter (temperature / air_quality / co2_level / rainfall / humidity): ").strip()
+    if param not in ["temperature","air_quality","co2_level","rainfall","humidity"]:
+        print("Invalid parameter.")
+        return
     filtered = data
     if region:
-        filtered = [r for r in filtered if r.get('region','').lower() == region.lower()]
-    if year:
-        filtered = [r for r in filtered if r.get('date','').startswith(year)]
+        filtered = [r for r in data if r.get('region','').lower()==region.lower()]
     if not filtered:
         print("No matching records.")
         return
-    def to_f(x):
-        return float(x)
-    temps = [to_f(r.get('temperature')) for r in filtered if to_f(r.get('temperature')) is not None]
-    aqs = [to_f(r.get('air_quality')) for r in filtered if to_f(r.get('air_quality')) is not None]
-    co2s = [to_f(r.get('co2_level')) for r in filtered if to_f(r.get('co2_level')) is not None]
-    print(f"Report generated for {len(filtered)} records.")
-    if temps:
-        print(f"Temperature -> avg: {sum(temps)/len(temps):.2f}, max: {max(temps):.2f}, min: {min(temps):.2f}")
-    if aqs:
-        print(f"Air Quality -> avg: {sum(aqs)/len(aqs):.2f}, max: {max(aqs):.2f}, min: {min(aqs):.2f}")
-    if co2s:
-        print(f"CO2 Level -> avg: {sum(co2s)/len(co2s):.2f}, max: {max(co2s):.2f}, min: {min(co2s):.2f}")
-    report_id = str(int(datetime.now().timestamp()))
-    params = json.dumps({"region": region, "year": year})
-    append_row(data_files["reports"], {
-        "report_id": report_id,
-        "researcher_id": admin_username,
-        "type": "admin_summary",
-        "parameters": params,
-        "generated_on": str(datetime.now())
-    }, report_fields)
-    print(f"Report saved with id {report_id} in {data_files['reports']}.\n")
+    for r in filtered:
+        r[param] = float(r.get(param,'0'))
 
-def manage_researcher_access():
+    if choice == '1':
+        buckets = {}
+        for r in filtered:
+            y,m,_ = r['date'].split('-')
+            key = f"{y}-{m}"
+            buckets.setdefault(key, []).append(r[param])
+        print(f"\nMONTHLY AVG for {param}:")
+        for k,v in sorted(buckets.items()):
+            vv = [x for x in v if x is not None]
+            if vv: print(k, "->", round(sum(vv)/len(vv),2))
+
+    elif choice == '2':
+        buckets = {}
+        for r in filtered:
+            y = r['date'][:4]
+            buckets.setdefault(y, []).append(r[param])
+        print(f"\nANNUAL AVG for {param}:")
+        for k,v in sorted(buckets.items()):
+            vv=[x for x in v if x is not None]
+            if vv: print(k, "->", round(sum(vv)/len(vv),2))
+
+    elif choice == '3':
+        vals = [r[param] for r in filtered if r[param] is not None]
+        avg = sum(vals)/len(vals)
+        import math
+        sd = math.sqrt(sum((x-avg)**2 for x in vals)/len(vals))
+        print(f"\nANOMALIES in {param} (|Z| > 2):")
+        for r in filtered:
+            v = r[param]
+            if v is None: continue
+            z=(v-avg)/sd
+            if abs(z)>2:
+                print(r['date'], r['region'], v, f"Z={round(z,2)}")
+
+    elif choice == '4':
+        top = sorted(filtered, key=lambda x:x[param], reverse=True)[:5]
+        print(f"\nTOP 5 EXTREME {param.upper()} EVENTS:")
+        display_table(top)
+
+    else:
+        print("Invalid option.")
+        return
+
+
+def manage_researcher_access(admin_username):
     access = load_csv(data_files["access"], access_fields)
     if not access:
         print("No access requests present.")
@@ -301,12 +331,13 @@ def manage_researcher_access():
         if a.get('req_id')==req:
             new = safe_input("Enter status (approved/rejected/pending): ").strip()
             a['status']=new
-            a['approved_by']=safe_input("Approved/Rejected by (admin name): ").strip()
+            a['approved_by']=admin_username
             access[i]=a
             write_csv(data_files['access'], access, access_fields)
             print("Access request updated.")
             return
     print("req_id not found.")
+
 
 def admin_menu(admin_username):
     while True:
@@ -322,9 +353,9 @@ def admin_menu(admin_username):
         elif choice == '4':
             upload_bulk_data()
         elif choice == '5':
-            generate_reports_admin(admin_username)
+            generate_reports_admin()
         elif choice == '6':
-            manage_researcher_access()
+            manage_researcher_access(admin_username)
         elif choice == '7':
             print("Logging out...")
             break
@@ -336,18 +367,18 @@ def register_researcher():
     data = load_csv(data_files['researchers'], researcher_fields)
     max_id = 0
     for r in data:
-        try:
-            v = int(r.get('researcher_id', '0'))
-            if v > max_id: max_id = v
-        except:
-            pass
+        v = int(r.get('researcher_id', '0'))
+        if v > max_id: max_id = v
     rid = str(max_id+1)
     print("\n--- Researcher Registration ---")
     name = safe_input("Name: ").strip()
     org = safe_input("Organization: ").strip()
     field = safe_input("Field of Study: ").strip()
     contact = safe_input("Contact: ").strip()
-    pwd = safe_input("Create a password: ").strip()
+    while True:
+        pwd = safe_input("Create a password: ")
+        if pwd == safe_input("Retype password: "): break
+        else: print("Passwords don't match.")
     append_row(data_files['researchers'], {
         'researcher_id': rid,
         'name': name,
@@ -364,6 +395,7 @@ def register_researcher():
     }, access_fields)
     print(f"Registration complete. Your Researcher ID is {rid}. Access pending approval.\n")
 
+
 def researcher_login():
     print("\n--- Researcher Login ---")
     rid = safe_input("Researcher ID: ").strip()
@@ -372,13 +404,19 @@ def researcher_login():
     for r in researchers:
         if r.get('researcher_id')==rid and r.get('pwd')==pwd:
             access = load_csv(data_files['access'], access_fields)
-            ok = False
+            status = False
             for a in access:
-                if a.get('researcher_id')==rid and a.get('status','').lower() in ('approved','approve'):
-                    ok = True
+                if a.get('researcher_id') == rid and a.get('status','').lower() in ('approved','approve'):
+                    status = "approved"
                     break
-            if not ok:
-                print("Access not approved yet. Contact an admin.")
+                elif a.get('researcher_id') == rid and a.get('status', '').lower() in ('rejected', 'reject'):
+                    status =  "rejected"
+                    break
+            if status != 'approved':
+                if status == 'rejected':
+                    print("Access request has been rejected by admin.")
+                else:
+                    print("Access not approved yet. Contact an admin.")
                 return None
             print(f"\nWelcome, {r.get('name')}!\n")
             researcher_menu(rid)
@@ -417,72 +455,270 @@ def search_climate_data():
         results.append(r)
     display_table(results)
 
+
 def perform_analysis():
-    data = load_csv(data_files['climate_data'], climate_fields)
+    data = load_csv(data_files["climate_data"], climate_fields)
     if not data:
-        print("No climate data present.")
+        print("\nNo climate data present.\n")
         return
-    region = safe_input("Region for analysis (leave blank for all): ").strip()
-    param = safe_input("Parameter to analyze (temperature/air_quality/co2_level/rainfall/humidity): ").strip()
-    if not param or param not in climate_fields:
-        print("Invalid parameter.")
+
+    menu = "\n--- Perform Analysis ---\n" \
+           "1. Monthly Trend\n" \
+           "2. Annual Trend\n" \
+           "3. Anomaly Detection (Z-score)\n" \
+           "4. Extreme Events (top 5)\n" \
+           "5. Visualize Trends\n" \
+           "6. Back\n"
+    print(menu)
+
+    choice = safe_input("Select option: ").strip()
+    if choice == '6':
         return
-    filtered = [r for r in data if (not region) or r.get('region','').lower()==region.lower()]
-    vals = []
+
+    if choice == '5':
+        visualize_params(data)
+        return
+
+    region = safe_input("Region (leave blank for ALL): ").strip()
+    param = safe_input("Parameter (temperature / air_quality / co2_level / rainfall / humidity): ").strip()
+    if param not in climate_fields:
+        print("\nInvalid parameter.\n")
+        return
+
+    filtered = data if not region else [r for r in data if r.get('region','').lower()==region.lower()]
+    if not filtered:
+        print("\nNo matching records.\n")
+        return
+
     for r in filtered:
-        v = float(r.get(param,''))
-        vals.append(v)
-    if not vals:
-        print("No numeric data found for this query.")
+        r[param] = float(r.get(param,'0'))
+
+    if choice == '1':
+        buckets = {}
+        for r in filtered:
+            y, m, _ = r['date'].split('-')
+            key = f"{y}-{m}"
+            buckets.setdefault(key, []).append(r[param])
+
+        start_p = safe_input("Start month (YYYY-MM or blank): ").strip()
+        end_p = safe_input("End   month (YYYY-MM or blank): ").strip()
+
+        out = "\nMONTHLY AVG (" + param + "):\n"
+        for k in sorted(buckets.keys()):
+            if start_p and k < start_p: continue
+            if end_p and k > end_p: continue
+            vv = [x for x in buckets[k] if x is not None]
+            if vv: out += f"{k} -> {round(sum(vv) / len(vv), 2)}\n"
+
+
+    elif choice == '2':
+        buckets = {}
+        for r in filtered:
+            y = r['date'][:4]
+            buckets.setdefault(y, []).append(r[param])
+        start_p = safe_input("Start year (YYYY or blank): ").strip()
+        end_p = safe_input("End   year (YYYY or blank): ").strip()
+        out = "\nANNUAL AVG (" + param + "):\n"
+        for k in sorted(buckets.keys()):
+            if start_p and k < start_p: continue
+            if end_p and k > end_p: continue
+            vv = [x for x in buckets[k] if x is not None]
+            if vv: out += f"{k} -> {round(sum(vv) / len(vv), 2)}\n"
+
+
+    elif choice == '3':
+        vals=[r[param] for r in filtered if r[param] is not None]
+        avg=sum(vals)/len(vals)
+        import math
+        sd=math.sqrt(sum((x-avg)**2 for x in vals)/len(vals))
+        out=f"\nANOMALIES in {param} (|Z|>2):\n"
+        for r in filtered:
+            v=r[param]
+            if v is None: continue
+            z=(v-avg)/sd
+            if abs(z)>2:
+                out+=f"{r['date']} {r['region']} {v} Z={round(z,2)}\n"
+
+    elif choice == '4':
+        top=sorted(filtered,key=lambda x:x[param],reverse=True)[:5]
+        out=f"\nTOP 5 {param.upper()}:\n\n"
+        from tabulate import tabulate
+        out+=tabulate(top,headers="keys",tablefmt="grid")+"\n"
+    else:
+        print("\nInvalid option.\n")
         return
-    print(f"Count: {len(vals)}, Avg: {sum(vals)/len(vals):.2f}, Max: {max(vals)}, Min: {min(vals)}")
+
+    print(out)
+
+
+def visualize_params(data):
+    region = safe_input("Region (blank for all): ").strip()
+
+    p_input = safe_input("Parameters space separated (temperature air_quality co2_level rainfall humidity): ").strip()
+    params = p_input.split()
+    valid = ["temperature","air_quality","co2_level","rainfall","humidity"]
+    params = [p for p in params if p in valid]
+    if not params:
+        print("\nNo valid parameters selected.\n")
+        return
+
+    mode = safe_input("Type 'month' or 'year': ").strip().lower()
+    if mode not in ("month","year"):
+        print("\nInvalid mode.\n")
+        return
+
+    filtered = data if not region else [r for r in data if r.get('region','').lower() == region.lower()]
+    if not filtered:
+        print("\nNo matching data.\n")
+        return
+
+    for r in filtered:
+        for p in params:
+            r[p] = float(r.get(p,"0"))
+
+    bucket = {}
+
+    for r in filtered:
+        d = r.get('date','')
+        key = d[:7] if mode=="month" else d[:4]
+        bucket.setdefault(key, {p:[] for p in params})
+        for p in params:
+            if r[p] is not None:
+                bucket[key][p].append(r[p])
+
+    start_p = safe_input(f"Start {mode} (YYYY-MM if month / YYYY if year): ").strip()
+    end_p = safe_input(f"End   {mode} (YYYY-MM if month / YYYY if year): ").strip()
+    period_keys = [k for k in sorted(bucket.keys()) if (not start_p or k >= start_p) and (not end_p or k <= end_p)]
+
+    if not period_keys:
+        print("\nNo data in selected period range.\n")
+        return
+
+    x = []
+    y = {p: [] for p in params}
+    for period in period_keys:
+        x.append(period)
+        for p in params:
+            vals = bucket[period][p]
+            y[p].append(sum(vals) / len(vals) if vals else None)
+
+    plt.figure()
+    for p in params:
+        plt.plot(x, y[p], label=p)
+
+    plt.xlabel("Period ("+mode+")")
+    plt.ylabel("Value")
+    plt.title("Climate Trend ("+", ".join(params)+")")
+    plt.legend()
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+
+    save = safe_input("Save PNG image? (Y/N): ").strip().lower()
+    if save == "y":
+        f_name = "vis_" + datetime.now().strftime("%Y%m%d%H%M%S") + ".png"
+        plt.savefig(f_name)
+        print(f"\nSaved as {f_name}\n")
+    plt.close()
+
 
 def generate_report(researcher_id):
     print("\n--- Generate Report ---")
     region = safe_input("Region (leave blank for all): ").strip()
-    year = safe_input("Year (YYYY or blank): ").strip()
-    rtype = safe_input("Report type/name: ").strip() or 'researcher_summary'
+    date1 = safe_input("Start date (YYYY-MM-DD or blank): ").strip()
+    date2 = safe_input("End date (YYYY-MM-DD or blank): ").strip()
+
+    data = load_csv(data_files["climate_data"], climate_fields)
+
+    results = []
+    for r in data:
+        if region and r.get('region','').lower() != region.lower():
+            continue
+        d = r.get('date','')
+        if date1 and d < date1: continue
+        if date2 and d > date2: continue
+        results.append(r)
+
+    print("\nCLIMATE DATA (FILTERED):")
+    display_table(results)
     report_id = str(int(datetime.now().timestamp()))
-    params = json.dumps({"region": region, "year": year})
+    params = json.dumps({"region": region, "date1": date1, "date2": date2})
+
     append_row(data_files['reports'], {
         'report_id': report_id,
         'researcher_id': researcher_id,
-        'type': rtype,
+        'type': 'region_date_range',
         'parameters': params,
         'generated_on': str(datetime.now())
     }, report_fields)
-    print(f"Report generated and saved with id {report_id}.\n")
+
+    print(f"\nReport generated and saved with id {report_id}.\n")
+
 
 def export_report():
     reports = load_csv(data_files['reports'], report_fields)
+    data = load_csv(data_files['climate_data'], climate_fields)
     if not reports:
         print("No reports to export.")
         return
+
     display_table(reports)
     rid = safe_input("Enter report_id to export: ").strip()
-    for r in reports:
-        if r.get('report_id')==rid:
+
+    for rep in reports:
+        if rep.get('report_id') == rid:
+            p = json.loads(rep.get("parameters","{}"))
+            region = p.get("region","")
+            date1 = p.get("date1","")
+            date2 = p.get("date2","")
+            results = []
+            for r in data:
+                if region and r.get('region','').lower() != region.lower(): continue
+                d = r.get('date','')
+                if date1 and d < date1: continue
+                if date2 and d > date2: continue
+                results.append(r)
+
             csv_name = f"export_report_{rid}.csv"
             json_name = f"export_report_{rid}.json"
-            write_csv(csv_name, [r], report_fields)
+            write_csv(csv_name, results, climate_fields)
             with open(json_name,'w') as f:
-                json.dump(r, f, indent=4)
-            print(f"Exported to {csv_name} and {json_name}.")
+                json.dump(results, f, indent=4)
+            print(f"Exported {len(results)} records to {csv_name} and {json_name}.")
             return
+
     print("report_id not found.")
+
 
 def view_profile(researcher_id):
     researchers = load_csv(data_files['researchers'], researcher_fields)
     for r in researchers:
-        if r.get('researcher_id')==researcher_id:
+        if r.get('researcher_id') == researcher_id:
+            r.pop('pwd')
             display_table([r])
             return
-    print("Profile not found.")
+
+def change_pwd(researcher_id):
+    data = load_csv(data_files['researchers'], researcher_fields)
+    for i, r in enumerate(data):
+        if r.get("researcher_id") == researcher_id:
+            while True:
+                if r.get("pwd", "") == safe_input("Enter the current password: "):
+                    new_pwd = input("Enter new password: ")
+                    if new_pwd == input("Retype password: "):
+                        r['pwd'] = new_pwd
+                        data[i] = r
+                        write_csv(data_files["researchers"], data, researcher_fields)
+                        print("Password changed.")
+                        break
+                    else: print("New Passwords don't match.")
+                else:
+                    print("Current Password doesn't match.")
 
 def researcher_menu(researcher_id):
     while True:
         print("\n--- Researcher Menu ---")
-        print("1. Search Climate Data\n2. Perform Analysis\n3. Generate Report\n4. Export Report\n5. View Profile\n6. Logout")
+        print("1. Search Climate Data\n2. Perform Analysis / Visualizations\n3. Generate Report\n4. Export Report\n5. View Profile\n6. Change Password\n7. Logout")
         choice = safe_input("Choice: ").strip()
         if choice == '1':
             search_climate_data()
@@ -495,6 +731,8 @@ def researcher_menu(researcher_id):
         elif choice == '5':
             view_profile(researcher_id)
         elif choice == '6':
+            change_pwd(researcher_id)
+        elif choice == '7':
             print("Logging out...")
             break
         else:
