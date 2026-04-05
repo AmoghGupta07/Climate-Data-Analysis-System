@@ -1,5 +1,5 @@
 # Climate-Data-Analysis-System
-Semester-1 Gorup Project built in Python.   
+Semester-1 Group Project built in Python.   
 25BCE2437 Areeb Ali Khan   
 25BCE2413 Sidharth P Nair  
 25BCE2394 Amogh Gupta  
